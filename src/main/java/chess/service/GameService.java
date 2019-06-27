@@ -38,7 +38,8 @@ public class GameService {
         deleteTargetStateIfPresent(to, sessionId);
         updateSrcState(from, to, sessionId);
         GameResult result = GameResult.judge(game.getBoardState().values());
-        GameSessionDto sess = sessionDao.findById(sessionId).orElseThrow(() -> new IllegalStateException("결과를 반영할 세션을 찾을 수 없습니다."));
+        GameSessionDto sess = sessionDao.findById(sessionId)
+            .orElseThrow(() -> new IllegalStateException("결과를 반영할 세션을 찾을 수 없습니다."));
         sess.setState(result.name());
         sessionDao.updateSession(sess);
         return result;
