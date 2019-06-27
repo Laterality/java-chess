@@ -21,7 +21,7 @@ public class GameSessionDaoTest {
 
     @Test
     void insertAndFind() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "some sess");
+        GameSessionDto sess = GameSessionDto.of(GameResult.KEEP.name(), "some sess");
         sess.setId(dao.addSession(sess));
         GameSessionDto found = dao.findById(sess.getId()).get();
         assertThat(found.getTitle()).isEqualTo(sess.getTitle());
@@ -31,7 +31,7 @@ public class GameSessionDaoTest {
 
     @Test
     void findByTitle() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "some other sess");
+        GameSessionDto sess = GameSessionDto.of(GameResult.KEEP.name(), "some other sess");
         sess.setId(dao.addSession(sess));
         Optional<GameSessionDto> maybeFound = dao.findByTitle("some other sess");
         assertThat(maybeFound.isPresent()).isTrue();

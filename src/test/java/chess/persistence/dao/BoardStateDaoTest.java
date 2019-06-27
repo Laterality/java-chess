@@ -31,9 +31,9 @@ public class BoardStateDaoTest {
 
     @Test
     void insertAndFindAndDelete() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "room1");
+        GameSessionDto sess = GameSessionDto.of(GameResult.KEEP.name(), "room1");
         sess.setId(gameSessionDao.addSession(sess));
-        BoardStateDto state = BoardStateDto.of(0, PieceType.ROOK_WHITE.name(), CoordinateX.B.getSymbol(), CoordinateY.RANK_4.getSymbol());
+        BoardStateDto state = BoardStateDto.of(PieceType.ROOK_WHITE.name(), CoordinateX.B.getSymbol(), CoordinateY.RANK_4.getSymbol());
         state.setId(boardStateDao.addState(state, sess.getId()));
         BoardStateDto found = boardStateDao.findById(state.getId()).get();
         assertThat(found.getType()).isEqualTo(state.getType());
@@ -47,9 +47,9 @@ public class BoardStateDaoTest {
 
     @Test
     void findByRoomId() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "room2");
-        BoardStateDto state1 = BoardStateDto.of(0, PieceType.ROOK_WHITE.name(), "b", "2");
-        BoardStateDto state2 = BoardStateDto.of(0, PieceType.ROOK_BLACK.name(), "a", "8");
+        GameSessionDto sess = GameSessionDto.of(GameResult.KEEP.name(), "room2");
+        BoardStateDto state1 = BoardStateDto.of(PieceType.ROOK_WHITE.name(), "b", "2");
+        BoardStateDto state2 = BoardStateDto.of(PieceType.ROOK_BLACK.name(), "a", "8");
         sess.setId(gameSessionDao.addSession(sess));
         state1.setId(boardStateDao.addState(state1, sess.getId()));
         state2.setId(boardStateDao.addState(state2, sess.getId()));
@@ -62,9 +62,9 @@ public class BoardStateDaoTest {
 
     @Test
     void updateCoordById() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "room3");
+        GameSessionDto sess = GameSessionDto.of(GameResult.KEEP.name(), "room3");
         sess.setId(gameSessionDao.addSession(sess));
-        BoardStateDto state = BoardStateDto.of(0, PieceType.ROOK_WHITE.name(), "b", "2");
+        BoardStateDto state = BoardStateDto.of(PieceType.ROOK_WHITE.name(), "b", "2");
         state.setId(boardStateDao.addState(state, sess.getId()));
         state.setCoordY("4");
         assertThat(boardStateDao.updateCoordById(state)).isEqualTo(1);
@@ -78,9 +78,9 @@ public class BoardStateDaoTest {
 
     @Test
     void findByRoomIdAndCoordinate() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "room4");
+        GameSessionDto sess = GameSessionDto.of(GameResult.KEEP.name(), "room4");
         sess.setId(gameSessionDao.addSession(sess));
-        BoardStateDto state = BoardStateDto.of(0, PieceType.ROOK_WHITE.name(), "b", "4");
+        BoardStateDto state = BoardStateDto.of(PieceType.ROOK_WHITE.name(), "b", "4");
         state.setId(boardStateDao.addState(state, sess.getId()));
         Optional<BoardStateDto> found = boardStateDao.findByRoomIdAndCoordinate(sess.getId(), state.getCoordX(), state.getCoordY());
         assertThat(found.isPresent()).isTrue();

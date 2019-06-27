@@ -1,13 +1,32 @@
 package chess.persistence.dto;
 
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
 public class GameSessionDto {
-    private long id;
+    @Id
+    @GeneratedValue
+    private Long id;
     private String state;
     private String title;
+    @OneToMany(mappedBy = "session")
+    private List<BoardStateDto> states = new ArrayList<>();
 
-    public static GameSessionDto of(long id, String state, String title) {
+    public static GameSessionDto of(Long id, String state, String title) {
         GameSessionDto dto = new GameSessionDto();
         dto.setId(id);
+        dto.setState(state);
+        dto.setTitle(title);
+        return dto;
+    }
+
+    public static GameSessionDto of(String state, String title) {
+        GameSessionDto dto = new GameSessionDto();
         dto.setState(state);
         dto.setTitle(title);
         return dto;
@@ -35,5 +54,13 @@ public class GameSessionDto {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public List<BoardStateDto> getStates() {
+        return states;
+    }
+
+    public void setStates(List<BoardStateDto> states) {
+        this.states = states;
     }
 }
