@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 public class ChessGameController {
+    private static final int DEFAULT_SESSIONS_LIMIT = 5;
+
     private static SessionService sessionService;
     private static GameService gameService;
 
@@ -99,7 +101,7 @@ public class ChessGameController {
 
     private static int getOrDefaultLimit(String limit) {
         if (limit == null || limit.isEmpty()) {
-            return 5;
+            return DEFAULT_SESSIONS_LIMIT;
         }
         return Integer.valueOf(limit);
     }
