@@ -2,6 +2,8 @@ package chess.persistence.dao;
 
 import chess.persistence.dto.GameSessionDto;
 
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
@@ -11,9 +13,14 @@ import java.util.Optional;
 public class GameSessionDao {
 
     private DataSource dataSource;
+    private EntityManagerFactory emf;
 
     public GameSessionDao(DataSource ds) {
         this.dataSource = ds;
+    }
+
+    public GameSessionDao(EntityManagerFactory emf) {
+        this.emf = emf;
     }
 
     public long addSession(GameSessionDto sess) {
@@ -27,6 +34,15 @@ public class GameSessionDao {
         }
     }
 
+    public GameSessionDto save(GameSessionDto session) {
+        EntityManager em = emf.createEntityManager();
+        em.getTransaction().begin();
+        em.persist(session);
+        em.getTransaction().commit();
+        em.close();
+        return session;
+    }
+
     private long getGeneratedKey(PreparedStatement query) throws SQLException {
         query.executeUpdate();
         try (ResultSet rs = query.getGeneratedKeys()) {
@@ -36,13 +52,10 @@ public class GameSessionDao {
     }
 
     public Optional<GameSessionDto> findById(long id) {
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement query = conn.prepareStatement(GameSessionDaoSql.SELECT_BY_ID)) {
-            query.setLong(1, id);
-            return handleSingleResult(query);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        EntityManager em = emf.createEntityManager();
+        GameSessionDto sess = em.find(GameSessionDto.class, id);
+        em.close();
+        return Optional.ofNullable(sess);
     }
 
     private Optional<GameSessionDto> handleSingleResult(PreparedStatement query) throws SQLException {
@@ -63,23 +76,21 @@ public class GameSessionDao {
     }
 
     public Optional<GameSessionDto> findByTitle(String title) {
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement query = conn.prepareStatement(GameSessionDaoSql.SELECT_BY_TITLE)) {
-            query.setString(1, title);
-            return handleSingleResult(query);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        EntityManager em = emf.createEntityManager();
+        GameSessionDto found = em.createQuery("select s from game_session s where title=:title", GameSessionDto.class)
+            .setParameter("title", title)
+            .getSingleResult();
+        em.close();
+        return Optional.ofNullable(found);
     }
 
     public List<GameSessionDto> findLatestSessions(int limit) {
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement query = conn.prepareStatement(GameSessionDaoSql.SELECT_LATEST_N)) {
-            query.setInt(1, limit);
-            return handleMultipleResults(query);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        EntityManager em = emf.createEntityManager();
+        List<GameSessionDto> results = em.createQuery("select s from game_session s order by reg_date desc", GameSessionDto.class)
+            .setMaxResults(limit)
+            .getResultList();
+        em.close();
+        return results;
     }
 
     private List<GameSessionDto> handleMultipleResults(PreparedStatement query) throws SQLException {

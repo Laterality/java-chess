@@ -1,8 +1,9 @@
 package chess.persistence.dto;
 
 import javax.persistence.*;
+import java.util.Objects;
 
-@Entity
+@Entity(name = "board_state")
 public class BoardStateDto {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -13,7 +14,9 @@ public class BoardStateDto {
     private String coordX;
     @Column(name = "loc_y")
     private String coordY;
-//    private GameSessionDto session;
+    @ManyToOne
+    @JoinColumn(name = "session_id")
+    private GameSessionDto session;
 
     public static BoardStateDto of(Long id, String type, String coordX, String coordY) {
         BoardStateDto dto = new BoardStateDto();
@@ -32,11 +35,11 @@ public class BoardStateDto {
         return dto;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -64,11 +67,28 @@ public class BoardStateDto {
         this.coordY = coordY;
     }
 
-//    public GameSessionDto getSession() {
-//        return session;
-//    }
-//
-//    public void setSession(GameSessionDto session) {
-//        this.session = session;
-//    }
+    public GameSessionDto getSession() {
+        return session;
+    }
+
+    public void setSession(GameSessionDto session) {
+        this.session = session;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BoardStateDto that = (BoardStateDto) o;
+        return Objects.equals(id, that.id) &&
+            Objects.equals(type, that.type) &&
+            Objects.equals(coordX, that.coordX) &&
+            Objects.equals(coordY, that.coordY) &&
+            Objects.equals(session, that.session);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, type, coordX, coordY, session);
+    }
 }

@@ -4,6 +4,7 @@
     <persistence-unit name="chess-jpa-unit">
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
         <class>chess.persistence.dto.BoardStateDto</class>
+        <class>chess.persistence.dto.GameSessionDto</class>
         <properties>
             <property name="javax.persistence.jdbc.driver" value="org.h2.Driver"/>
             <property name="javax.persistence.jdbc.url" value="jdbc:h2:mem:chess_db"/>

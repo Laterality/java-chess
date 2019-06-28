@@ -2,6 +2,8 @@ package chess.persistence.dao;
 
 import chess.persistence.dto.BoardStateDto;
 
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
@@ -11,9 +13,14 @@ import java.util.Optional;
 public class BoardStateDao {
 
     private DataSource dataSource;
+    private EntityManagerFactory emf;
 
     public BoardStateDao(DataSource ds) {
         this.dataSource = ds;
+    }
+
+    public BoardStateDao(EntityManagerFactory emf) {
+        this.emf = emf;
     }
 
     public long addState(BoardStateDto state, long sessionId) {
@@ -31,6 +38,15 @@ public class BoardStateDao {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public BoardStateDto save(BoardStateDto state) {
+        EntityManager em = emf.createEntityManager();
+        em.getTransaction().begin();
+        em.persist(state);
+        em.getTransaction().commit();
+        em.close();
+        return state;
     }
 
     private long getGeneratedKey(PreparedStatement query) throws SQLException {
