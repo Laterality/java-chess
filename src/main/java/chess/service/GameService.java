@@ -5,12 +5,15 @@ import chess.domain.boardcell.ChessPiece;
 import chess.domain.boardcell.ChessPieceFactory;
 import chess.domain.boardcell.PieceType;
 import chess.persistence.DataSourceFactory;
+import chess.persistence.PersistenceUnitFactory;
 import chess.persistence.dao.BoardStateDao;
 import chess.persistence.dao.GameSessionDao;
 import chess.persistence.dto.BoardStateDto;
 import chess.persistence.dto.GameSessionDto;
 import chess.service.dto.CoordinatePairDto;
 
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.List;
@@ -18,67 +21,64 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class GameService {
-    private GameSessionDao sessionDao;
-    private BoardStateDao boardStateDao;
+    private EntityManagerFactory emf;
 
     public GameService() {
         DataSource ds = DataSourceFactory.getInstance().createDataSource();
-        sessionDao = new GameSessionDao(ds);
-        boardStateDao = new BoardStateDao(ds);
+        emf = PersistenceUnitFactory.getEntityManagerFactory();
     }
 
     public List<BoardStateDto> findBoardStatesBySessionId(long sessionId) {
-        return boardStateDao.findBySessionId(sessionId);
+        EntityManager em = emf.createEntityManager();
+        GameSessionDao gameSessionDao = GameSessionDao.of(em);
+        GameSessionDto session = gameSessionDao.findById(sessionId)
+            .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다. ID: " + sessionId));
+        em.close();
+        return session.getPieces();
     }
 
     public GameResult movePiece(CoordinatePair from, CoordinatePair to, long sessionId) {
-        ChessGame game = new ChessGame(() -> findBoardStatesMapBySessionId(sessionId));
+        EntityManager em = emf.createEntityManager();
+        GameSessionDao sessionDao = GameSessionDao.of(em);
+        ChessGame game = new ChessGame(() -> findBoardStatesMapBySessionId(sessionDao, sessionId));
         game.move(from, to);
 
-        deleteTargetStateIfPresent(to, sessionId);
-        updateSrcState(from, to, sessionId);
+        BoardStateDao boardStateDao = BoardStateDao.of(em);
+        boardStateDao.findBySessionIdAndCoordinate(sessionId, to.getXSymbol(), to.getYSymbol())
+            .ifPresent(boardStateDao::delete);
+        boardStateDao.findBySessionIdAndCoordinate(sessionId, from.getXSymbol(), from.getYSymbol())
+            .ifPresent(dto -> {
+                dto.setCoordX(to.getXSymbol());
+                dto.setCoordY(to.getYSymbol());
+                boardStateDao.save(dto);
+            });
         GameResult result = GameResult.judge(game.getBoardState().values());
         GameSessionDto sess = sessionDao.findById(sessionId)
             .orElseThrow(() -> new IllegalStateException("결과를 반영할 세션을 찾을 수 없습니다."));
         sess.setState(result.name());
-        sessionDao.updateSession(sess);
+        sessionDao.save(sess);
+        em.close();
         return result;
     }
 
-    private LivingPieceGroup findBoardStatesMapBySessionId(long roomId) {
+    private LivingPieceGroup findBoardStatesMapBySessionId(GameSessionDao gameSessionDao, long sessionId) {
         Map<CoordinatePair, ChessPiece> board = new HashMap<>();
-
-        boardStateDao.findBySessionId(roomId)
+        EntityManager em = emf.createEntityManager();
+        gameSessionDao.findById(sessionId)
+            .orElseThrow(() -> new IllegalArgumentException("올바르지 않은 세션 ID입니다: " + sessionId))
+            .getPieces()
             .forEach(dto ->
                 board.put(CoordinatePair.of(dto.getCoordX() + dto.getCoordY()).get(),
                     ChessPieceFactory.create(PieceType.valueOf(dto.getType()))));
+        em.close();
         return LivingPieceGroup.of(board);
     }
 
-    private void deleteTargetStateIfPresent(CoordinatePair to, long roomId) {
-        boardStateDao.findByRoomIdAndCoordinate(roomId, to.getXSymbol(), to.getYSymbol())
-            .ifPresent(dto -> tryDeleteBoardStateById(dto.getId()));
-    }
-
-    private void tryDeleteBoardStateById(long id) {
-        boardStateDao.deleteById(id);
-    }
-
-    private void updateSrcState(CoordinatePair from, CoordinatePair to, long roomId) {
-        boardStateDao.findByRoomIdAndCoordinate(roomId, from.getXSymbol(), from.getYSymbol())
-            .ifPresent(dto -> {
-                dto.setCoordX(to.getXSymbol());
-                dto.setCoordY(to.getYSymbol());
-                tryUpdateBoardState(dto);
-            });
-    }
-
-    private void tryUpdateBoardState(BoardStateDto dto) {
-        boardStateDao.updateCoordById(dto);
-    }
-
     public List<CoordinatePairDto> findMovableCoordinates(long sessionId, CoordinatePair from) {
-        ChessGame game = new ChessGame(() -> findBoardStatesMapBySessionId(sessionId));
+        EntityManager em = emf.createEntityManager();
+        GameSessionDao gameSessionDao = GameSessionDao.of(em);
+        ChessGame game = new ChessGame(() -> findBoardStatesMapBySessionId(gameSessionDao, sessionId));
+        em.close();
         return game.getMovableCoordinates(from).stream()
             .map(coord -> {
                 CoordinatePairDto dto = new CoordinatePairDto();
@@ -90,12 +90,18 @@ public class GameService {
     }
 
     public ScoreCounter calculateScore(long sessionId) {
-        ChessGame game = new ChessGame(() -> findBoardStatesMapBySessionId(sessionId));
+        EntityManager em = emf.createEntityManager();
+        GameSessionDao gameSessionDao = GameSessionDao.of(em);
+        ChessGame game = new ChessGame(() -> findBoardStatesMapBySessionId(gameSessionDao, sessionId));
+        em.close();
         return new ScoreCounter(game.getBoardState());
     }
 
     public GameResult judgeResult(long sessionId) {
-        ChessGame game = new ChessGame(() -> findBoardStatesMapBySessionId(sessionId));
+        EntityManager em = emf.createEntityManager();
+        GameSessionDao gameSessionDao = GameSessionDao.of(em);
+        ChessGame game = new ChessGame(() -> findBoardStatesMapBySessionId(gameSessionDao, sessionId));
+        em.close();
         return GameResult.judgeScore(game.getBoardState());
     }
 }

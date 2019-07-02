@@ -49,9 +49,7 @@ public class ChessGameController {
         Map<String, Object> resMap;
         try {
             SessionCreationRequestDto body = new Gson().fromJson(req.body(), SessionCreationRequestDto.class);
-            GameSessionDto session = new GameSessionDto();
-            session.setTitle(body.getTitle());
-            session = sessionService.createSession(session);
+            GameSessionDto session = sessionService.createSession(body.getTitle());
             resMap = ResultState.OK.createResMap("");
             resMap.put("session", session);
         } catch (IllegalArgumentException e) {

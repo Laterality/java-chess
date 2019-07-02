@@ -14,25 +14,30 @@ public class BoardStateDto {
     private String coordX;
     @Column(name = "loc_y")
     private String coordY;
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "session_id")
     private GameSessionDto session;
 
-    public static BoardStateDto of(Long id, String type, String coordX, String coordY) {
+    public static BoardStateDto of(Long id, String type, String coordX, String coordY, GameSessionDto sess) {
         BoardStateDto dto = new BoardStateDto();
         dto.setId(id);
         dto.setType(type);
         dto.setCoordX(coordX);
         dto.setCoordY(coordY);
+        dto.setSession(sess);
         return dto;
     }
 
+    public static BoardStateDto of(Long id, String type, String coordX, String coordY) {
+        return of(id, type, coordX, coordY, null);
+    }
+
+    public static BoardStateDto of(String type, String coordX, String coordY, GameSessionDto sess) {
+        return of(null, type, coordX, coordY, sess);
+    }
+
     public static BoardStateDto of(String type, String coordX, String coordY) {
-        BoardStateDto dto = new BoardStateDto();
-        dto.setType(type);
-        dto.setCoordX(coordX);
-        dto.setCoordY(coordY);
-        return dto;
+        return of(null, type, coordX, coordY);
     }
 
     public Long getId() {

@@ -27,7 +27,7 @@ public class PersistenceUnitTest {
         em.getTransaction().begin();
         em.persist(BoardStateDto.of(PieceType.ROOK_BLACK.name(),"a", "1"));
         em.getTransaction().commit();
-        List<BoardStateDto> result = em.createQuery("select s from BoardStateDto s").getResultList();
+        List<BoardStateDto> result = em.createQuery("select s from board_state s", BoardStateDto.class).getResultList();
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getType()).isEqualTo(PieceType.ROOK_BLACK.name());
     }

@@ -2,9 +2,9 @@ package chess.persistence.dao;
 
 import chess.domain.GameResult;
 import chess.persistence.dto.GameSessionDto;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
+import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 import java.util.List;
@@ -14,12 +14,33 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class GameSessionDaoTest {
     private static final String PU_NAME = "chess-jpa-unit";
 
-    private static GameSessionDao gameSessionDao;
+    private static EntityManagerFactory emf;
+
+    private GameSessionDao gameSessionDao;
+    private EntityManager em;
 
     @BeforeAll
     static void init() {
-        EntityManagerFactory emf = Persistence.createEntityManagerFactory(PU_NAME);
-        gameSessionDao = new GameSessionDao(emf);
+        emf = Persistence.createEntityManagerFactory(PU_NAME);
+    }
+
+    @AfterAll
+    static void cleanup() {
+        emf.close();
+        emf = null;
+    }
+
+    @BeforeEach
+    void createEm() {
+        this.em = emf.createEntityManager();
+        this.gameSessionDao = GameSessionDao.of(em);
+    }
+
+    @AfterEach
+    void closeEm() {
+        this.em.close();
+        this.em = null;
+        this.gameSessionDao = null;
     }
 
     @Test
@@ -56,16 +77,4 @@ public class GameSessionDaoTest {
         gameSessionDao.save(sess);
         assertThat(gameSessionDao.findById(sess.getId()).get().getState()).isEqualTo(GameResult.BLACK_WIN.name());
     }
-//
-//    @Test
-//    void updateState() throws SQLException {
-//        GameSessionDto sess = new GameSessionDto();
-//        sess.setTitle("choboman");
-//        sess.setState(GameResult.KEEP.name());
-//        sess.setId(dao.addSession(sess));
-//        sess.setState(GameResult.BLACK_WIN.name());
-//        dao.updateSession(sess);
-//        assertThat(dao.findById(sess.getId()).get().getState()).isEqualTo(GameResult.BLACK_WIN.name());
-//        dao.deleteById(sess.getId());
-//    }
 }
