@@ -3,6 +3,7 @@ package chess.persistence.dao;
 import chess.persistence.dto.GameSessionDto;
 
 import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,10 +31,14 @@ public class GameSessionDao {
     }
 
     public Optional<GameSessionDto> findByTitle(String title) {
-        GameSessionDto result = em.createQuery("SELECT s FROM game_session s WHERE title=:title", GameSessionDto.class)
-            .setParameter("title", title)
-            .getSingleResult();
-        return Optional.ofNullable(result);
+        try {
+            GameSessionDto result = em.createQuery("SELECT s FROM game_session s WHERE title=:title", GameSessionDto.class)
+                .setParameter("title", title)
+                .getSingleResult();
+            return Optional.of(result);
+        } catch (NoResultException e) {
+            return Optional.empty();
+        }
     }
 
     public List<GameSessionDto> findLatestSessions(int limit) {

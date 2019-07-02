@@ -3,6 +3,7 @@ package chess.persistence.dao;
 import chess.persistence.dto.BoardStateDto;
 
 import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
 import java.util.Optional;
 
 public class BoardStateDao {
@@ -29,14 +30,17 @@ public class BoardStateDao {
     }
 
     public Optional<BoardStateDto> findBySessionIdAndCoordinate(long sessionId, String coordX, String coordY) {
-        BoardStateDto found = em.createQuery("SELECT b FROM board_state b WHERE session_id=:sessionId AND loc_x=:coordX AND loc_y=:coordY",
-            BoardStateDto.class)
-            .setParameter("sessionId", sessionId)
-            .setParameter("coordX", coordX)
-            .setParameter("coordY", coordY)
-            .getSingleResult();
-
-        return Optional.ofNullable(found);
+        try {
+            BoardStateDto found = em.createQuery("SELECT b FROM board_state b WHERE session_id=:sessionId AND loc_x=:coordX AND loc_y=:coordY",
+                BoardStateDto.class)
+                .setParameter("sessionId", sessionId)
+                .setParameter("coordX", coordX)
+                .setParameter("coordY", coordY)
+                .getSingleResult();
+            return Optional.of(found);
+        } catch (NoResultException e) {
+            return Optional.empty();
+        }
     }
 
     public void delete(BoardStateDto boardState) {

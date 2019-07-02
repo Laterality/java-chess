@@ -1,6 +1,7 @@
 package chess.persistence.dto;
 
 import javax.persistence.*;
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity(name = "board_state")
@@ -17,6 +18,9 @@ public class BoardStateDto {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "session_id")
     private GameSessionDto session;
+    @Column(name = "reg_date")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private LocalDateTime regDate;
 
     public static BoardStateDto of(Long id, String type, String coordX, String coordY, GameSessionDto sess) {
         BoardStateDto dto = new BoardStateDto();
@@ -78,6 +82,14 @@ public class BoardStateDto {
 
     public void setSession(GameSessionDto session) {
         this.session = session;
+    }
+
+    public LocalDateTime getRegDate() {
+        return regDate;
+    }
+
+    public void setRegDate(LocalDateTime regDate) {
+        this.regDate = regDate;
     }
 
     @Override
