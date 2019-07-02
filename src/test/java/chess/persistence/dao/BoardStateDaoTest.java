@@ -1,91 +1,116 @@
 package chess.persistence.dao;
 
-import chess.domain.CoordinateX;
-import chess.domain.CoordinateY;
 import chess.domain.GameResult;
 import chess.domain.boardcell.PieceType;
-import chess.persistence.DataSourceFactory;
 import chess.persistence.dto.BoardStateDto;
 import chess.persistence.dto.GameSessionDto;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
-import javax.sql.DataSource;
-import java.sql.SQLException;
-import java.util.List;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
+
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class BoardStateDaoTest {
+    private static final String PU_NAME = "chess-jpa-unit";
 
-    private GameSessionDao gameSessionDao;
+    private static EntityManagerFactory emf;
+
+    private EntityManager em;
     private BoardStateDao boardStateDao;
+    private GameSessionDao gameSessionDao;
+
+    @BeforeAll
+    static void init() {
+        emf = Persistence.createEntityManagerFactory(PU_NAME);
+    }
+
+    @AfterAll
+    static void cleanup() {
+        emf.close();
+        emf = null;
+    }
 
     @BeforeEach
-    void init() {
-        DataSource ds = DataSourceFactory.getInstance().createDataSource();
-        boardStateDao = new BoardStateDao(ds);
-        gameSessionDao = new GameSessionDao(ds);
+    void createEm() {
+        this.em = emf.createEntityManager();
+        this.gameSessionDao = GameSessionDao.of(em);
+        this.boardStateDao = BoardStateDao.of(em);
+    }
+
+    @AfterEach
+    void closeEm() {
+        this.em.close();
+        this.em = null;
+        this.gameSessionDao = null;
+        this.boardStateDao = null;
     }
 
     @Test
-    void insertAndFindAndDelete() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "room1");
-        sess.setId(gameSessionDao.addSession(sess));
-        BoardStateDto state = BoardStateDto.of(0, PieceType.ROOK_WHITE.name(), CoordinateX.B.getSymbol(), CoordinateY.RANK_4.getSymbol());
-        state.setId(boardStateDao.addState(state, sess.getId()));
-        BoardStateDto found = boardStateDao.findById(state.getId()).get();
-        assertThat(found.getType()).isEqualTo(state.getType());
-        assertThat(found.getCoordX()).isEqualTo(state.getCoordX());
-        assertThat(found.getCoordY()).isEqualTo(state.getCoordY());
-        assertThat(boardStateDao.deleteById(state.getId())).isEqualTo(1);
-        assertThat(boardStateDao.findById(state.getId()).isPresent()).isFalse();
-        boardStateDao.deleteById(state.getId());
-        gameSessionDao.deleteById(sess.getId());
+    void insert() {
+        BoardStateDto dto = BoardStateDto.of(PieceType.ROOK_BLACK.name(), "a", "8");
+        BoardStateDto inserted = boardStateDao.save(dto);
+        assertThat(inserted.getId()).isNotNull();
     }
 
     @Test
-    void findByRoomId() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "room2");
-        BoardStateDto state1 = BoardStateDto.of(0, PieceType.ROOK_WHITE.name(), "b", "2");
-        BoardStateDto state2 = BoardStateDto.of(0, PieceType.ROOK_BLACK.name(), "a", "8");
-        sess.setId(gameSessionDao.addSession(sess));
-        state1.setId(boardStateDao.addState(state1, sess.getId()));
-        state2.setId(boardStateDao.addState(state2, sess.getId()));
-        List<BoardStateDto> founds = boardStateDao.findBySessionId(sess.getId());
-        assertThat(founds).hasSize(2);
-        gameSessionDao.deleteById(sess.getId());
-        boardStateDao.deleteById(state1.getId());
-        boardStateDao.deleteById(state2.getId());
+    void findById() {
+        BoardStateDto dto = boardStateDao.save(BoardStateDto.of(PieceType.ROOK_BLACK.name(), "a", "8"));
+        BoardStateDto found = boardStateDao.findById(dto.getId()).get();
+        assertThat(found).isEqualTo(dto);
     }
 
     @Test
-    void updateCoordById() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "room3");
-        sess.setId(gameSessionDao.addSession(sess));
-        BoardStateDto state = BoardStateDto.of(0, PieceType.ROOK_WHITE.name(), "b", "2");
-        state.setId(boardStateDao.addState(state, sess.getId()));
+    void findBySessionId() {
+        GameSessionDto sess = gameSessionDao.save(GameSessionDto.of(GameResult.KEEP.name(), "room2"));
+        BoardStateDto state1 = boardStateDao.save(BoardStateDto.of(null, PieceType.ROOK_WHITE.name(), "b", "2", sess));
+        BoardStateDto state2 = boardStateDao.save(BoardStateDto.of(null, PieceType.ROOK_BLACK.name(), "a", "8", sess));
+        em.clear();
+        GameSessionDto founds = gameSessionDao.findById(sess.getId()).get();
+        assertThat(founds.getPieces())
+            .hasSize(2)
+            .containsExactlyInAnyOrder(state1, state2);
+    }
+//
+    @Test
+    void updateCoordById() {
+        GameSessionDto sess = GameSessionDto.of(GameResult.KEEP.name(), "room3");
+        gameSessionDao.save(sess);
+        BoardStateDto state = BoardStateDto.of(null, PieceType.ROOK_WHITE.name(), "b", "2", sess);
+        boardStateDao.save(state);
+        em.clear();
+        state = boardStateDao.findById(state.getId()).get();
         state.setCoordY("4");
-        assertThat(boardStateDao.updateCoordById(state)).isEqualTo(1);
+        boardStateDao.save(state);
+        em.clear();
         BoardStateDto found = boardStateDao.findById(state.getId()).get();
         assertThat(found.getType()).isEqualTo(state.getType());
         assertThat(found.getCoordX()).isEqualTo(state.getCoordX());
         assertThat(found.getCoordY()).isEqualTo(state.getCoordY());
-        gameSessionDao.deleteById(sess.getId());
-        boardStateDao.deleteById(state.getId());
     }
 
     @Test
-    void findByRoomIdAndCoordinate() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "room4");
-        sess.setId(gameSessionDao.addSession(sess));
-        BoardStateDto state = BoardStateDto.of(0, PieceType.ROOK_WHITE.name(), "b", "4");
-        state.setId(boardStateDao.addState(state, sess.getId()));
-        Optional<BoardStateDto> found = boardStateDao.findByRoomIdAndCoordinate(sess.getId(), state.getCoordX(), state.getCoordY());
+    void findByRoomIdAndCoordinate() {
+        GameSessionDto sess = GameSessionDto.of(GameResult.KEEP.name(), "room4");
+        gameSessionDao.save(sess);
+        BoardStateDto state = BoardStateDto.of(null, PieceType.ROOK_WHITE.name(), "b", "4", sess);
+        boardStateDao.save(state);
+        em.clear();
+        Optional<BoardStateDto> found = boardStateDao.findBySessionIdAndCoordinate(sess.getId(), state.getCoordX(), state.getCoordY());
         assertThat(found.isPresent()).isTrue();
         assertThat(found.get().getId()).isEqualTo(state.getId());
-        gameSessionDao.deleteById(sess.getId());
-        boardStateDao.deleteById(state.getId());
+    }
+
+    @Test
+    void delete() {
+        BoardStateDto inserted = boardStateDao.save(BoardStateDto.of(PieceType.ROOK_BLACK.name(), "a", "8"));
+        em.clear();
+        BoardStateDto found = boardStateDao.findById(inserted.getId()).get();
+        boardStateDao.delete(found);
+        em.clear();
+        assertThat(boardStateDao.findById(inserted.getId()).isPresent()).isFalse();
     }
 }

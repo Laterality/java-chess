@@ -1,12 +1,13 @@
 package chess.conroller;
 
+import chess.conroller.dto.BoardStateResponseDto;
+import chess.conroller.dto.GameSessionResponseDto;
 import chess.conroller.dto.PieceMoveRequestDto;
 import chess.conroller.dto.SessionCreationRequestDto;
 import chess.domain.CoordinatePair;
 import chess.domain.GameResult;
 import chess.domain.ScoreCounter;
 import chess.domain.Team;
-import chess.persistence.dto.GameSessionDto;
 import chess.service.GameService;
 import chess.service.SessionService;
 import chess.service.dto.CoordinatePairDto;
@@ -17,6 +18,7 @@ import spark.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ChessGameController {
     private static final int DEFAULT_SESSIONS_LIMIT = 5;
@@ -51,9 +53,7 @@ public class ChessGameController {
         Map<String, Object> resMap;
         try {
             SessionCreationRequestDto body = new Gson().fromJson(req.body(), SessionCreationRequestDto.class);
-            GameSessionDto session = new GameSessionDto();
-            session.setTitle(body.getTitle());
-            session = sessionService.createSession(session);
+            GameSessionResponseDto session = GameSessionResponseDto.from(sessionService.createSession(body.getTitle()));
             resMap = ResultState.OK.createResMap("");
             resMap.put("session", session);
         } catch (IllegalArgumentException e) {
@@ -86,7 +86,10 @@ public class ChessGameController {
         Map<String, Object> resMap;
         try {
             resMap = ResultState.OK.createResMap("");
-            resMap.put("sessions", sessionService.findLatestSessions(getOrDefaultLimit(req.queryParams("limit"))));
+            resMap.put("sessions", sessionService.findLatestSessions(getOrDefaultLimit(req.queryParams("limit")))
+                .stream()
+                .map(GameSessionResponseDto::from)
+                .collect(Collectors.toList()));
         } catch (NumberFormatException e) {
             resMap = ResultState.FAIL.createResMap("숫자로 변환할 수 없는 인자가 있습니다.");
         } catch (IllegalArgumentException e) {
@@ -111,8 +114,11 @@ public class ChessGameController {
         try {
             long sessId = Long.valueOf(req.params("id"));
             resMap = ResultState.OK.createResMap("");
-            resMap.put("session", sessionService.findSessionById(sessId));
-            resMap.put("states", gameService.findBoardStatesBySessionId(sessId));
+            resMap.put("session", GameSessionResponseDto.from(sessionService.findSessionById(sessId)
+                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다. ID: " + sessId))));
+            resMap.put("states", gameService.findBoardStatesBySessionId(sessId).stream()
+                .map(BoardStateResponseDto::from)
+                .collect(Collectors.toList()));
         } catch (NumberFormatException e) {
             resMap = ResultState.FAIL.createResMap("숫자로 변환할 수 없는 인자가 있습니다.");
         } catch (IllegalArgumentException e) {
@@ -187,7 +193,9 @@ public class ChessGameController {
             resMap = ResultState.OK.createResMap("");
             Map<String, Object> stateMap = new HashMap<>();
             stateMap.put("result", result.name());
-            stateMap.put("board", gameService.findBoardStatesBySessionId(body.getSessionId()));
+            stateMap.put("board", gameService.findBoardStatesBySessionId(body.getSessionId()).stream()
+                .map(BoardStateResponseDto::from)
+                .collect(Collectors.toList()));
             resMap.put("state", stateMap);
         } catch (IllegalArgumentException e) {
             resMap = ResultState.FAIL.createResMap(e.getMessage());

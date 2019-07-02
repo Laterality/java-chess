@@ -1,63 +1,80 @@
 package chess.persistence.dao;
 
 import chess.domain.GameResult;
-import chess.persistence.DataSourceFactory;
 import chess.persistence.dto.GameSessionDto;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
-import java.sql.SQLException;
-import java.util.Optional;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class GameSessionDaoTest {
-    GameSessionDao dao;
+    private static final String PU_NAME = "chess-jpa-unit";
+
+    private static EntityManagerFactory emf;
+
+    private GameSessionDao gameSessionDao;
+    private EntityManager em;
+
+    @BeforeAll
+    static void init() {
+        emf = Persistence.createEntityManagerFactory(PU_NAME);
+    }
+
+    @AfterAll
+    static void cleanup() {
+        emf.close();
+        emf = null;
+    }
 
     @BeforeEach
-    void init() {
-        dao = new GameSessionDao(DataSourceFactory.getInstance().createDataSource());
+    void createEm() {
+        this.em = emf.createEntityManager();
+        this.gameSessionDao = GameSessionDao.of(em);
+    }
+
+    @AfterEach
+    void closeEm() {
+        this.em.close();
+        this.em = null;
+        this.gameSessionDao = null;
     }
 
     @Test
-    void insertAndFind() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "some sess");
-        sess.setId(dao.addSession(sess));
-        GameSessionDto found = dao.findById(sess.getId()).get();
-        assertThat(found.getTitle()).isEqualTo(sess.getTitle());
-        assertThat(found.getState()).isEqualTo(sess.getState());
-        dao.deleteById(sess.getId());
+    void insert() {
+        GameSessionDto sess = gameSessionDao.save(GameSessionDto.of(GameResult.KEEP.name(), "some sess"));
+        assertThat(sess.getTitle()).isEqualTo("some sess");
     }
 
     @Test
-    void findByTitle() throws SQLException {
-        GameSessionDto sess = GameSessionDto.of(0, GameResult.KEEP.name(), "some other sess");
-        sess.setId(dao.addSession(sess));
-        Optional<GameSessionDto> maybeFound = dao.findByTitle("some other sess");
-        assertThat(maybeFound.isPresent()).isTrue();
-        dao.deleteById(sess.getId());
+    void findById() {
+        GameSessionDto sess = gameSessionDao.save(GameSessionDto.of(GameResult.KEEP.name(), "some sess"));
+        assertThat(gameSessionDao.findById(sess.getId()).isPresent()).isTrue();
     }
 
     @Test
-    void deleteById() throws SQLException {
-        GameSessionDto sess = new GameSessionDto();
-        sess.setTitle("some otheeeer sess");
-        sess.setState(GameResult.KEEP.name());
-        long insertedId = dao.addSession(sess);
-        int affected = dao.deleteById(insertedId);
-        assertThat(affected).isEqualTo(1);
-        assertThat(dao.findById(insertedId).isPresent()).isFalse();
+    void findByTitle() {
+        GameSessionDto sess = gameSessionDao.save(GameSessionDto.of(GameResult.KEEP.name(), "some other sess"));
+        assertThat(gameSessionDao.findByTitle("some other sess").isPresent()).isTrue();
     }
 
     @Test
-    void updateState() throws SQLException {
-        GameSessionDto sess = new GameSessionDto();
-        sess.setTitle("choboman");
-        sess.setState(GameResult.KEEP.name());
-        sess.setId(dao.addSession(sess));
+    void latestSessions() {
+        GameSessionDto s1 = gameSessionDao.save(GameSessionDto.of(GameResult.BLACK_WIN.name(), "first session"));
+        GameSessionDto s2 = gameSessionDao.save(GameSessionDto.of(GameResult.WHITE_WIN.name(), "second session"));
+        GameSessionDto s3 = gameSessionDao.save(GameSessionDto.of(GameResult.KEEP.name(), "third session"));
+        List<GameSessionDto> results = gameSessionDao.findLatestSessions(2);
+        assertThat(results).hasSize(2).containsExactly(s3, s2);
+    }
+
+    @Test
+    void updateState() {
+        GameSessionDto sess = gameSessionDao.save(GameSessionDto.of(GameResult.KEEP.name(), "first session"));
         sess.setState(GameResult.BLACK_WIN.name());
-        dao.updateSession(sess);
-        assertThat(dao.findById(sess.getId()).get().getState()).isEqualTo(GameResult.BLACK_WIN.name());
-        dao.deleteById(sess.getId());
+        gameSessionDao.save(sess);
+        assertThat(gameSessionDao.findById(sess.getId()).get().getState()).isEqualTo(GameResult.BLACK_WIN.name());
     }
 }

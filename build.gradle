@@ -9,6 +9,8 @@ repositories {
 }
 
 dependencies {
+    compile('org.hibernate:hibernate-entitymanager:5.4.3.Final')
+    compile('com.h2database:h2:1.4.199')
     compile('com.sparkjava:spark-core:2.9.0')
     compile('com.sparkjava:spark-template-handlebars:2.7.1')
     compile('ch.qos.logback:logback-classic:1.2.3')
